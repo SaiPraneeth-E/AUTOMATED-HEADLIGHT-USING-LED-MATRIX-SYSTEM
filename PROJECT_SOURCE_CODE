@@ -1,0 +1,101 @@
+#include <LiquidCrystal.h>
+#include <Servo.h>
+
+Servo lservo;
+Servo rservo;
+LiquidCrystal lcd(8, 9, 10, 11, 12, 13);
+
+#define ec1 2
+#define tr1 3
+#define ec2 4
+#define tr2 5
+
+int ldr = A1;  
+int ldr1 = A0; 
+int hl = A2; 
+int hr = A3;
+
+int lightThreshold = 600; 
+
+void setup() {
+    Serial.begin(9600);
+    pinMode(tr1, OUTPUT);
+    pinMode(ec1, INPUT);
+    pinMode(tr2, OUTPUT);
+    pinMode(ec2, INPUT);
+    pinMode(ldr, INPUT);
+    pinMode(ldr1, INPUT);
+
+    lservo.attach(7);
+    rservo.attach(6);
+    pinMode(hl, OUTPUT);
+    pinMode(hr, OUTPUT);
+    lservo.write(20);
+    rservo.write(0);
+    lcd.begin(16, 2);
+    lcd.print("    WELCOME");
+    digitalWrite(hl, HIGH);
+    digitalWrite(hr, HIGH);
+}
+
+void loop() {
+    int leftLight = analogRead(ldr1); 
+    bool isLeftLightDetected = (leftLight > lightThreshold);
+
+    digitalWrite(tr1, LOW);
+    delayMicroseconds(2);
+    digitalWrite(tr1, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(tr1, LOW);
+    int dst1 = pulseIn(ec1, HIGH) / 58.2; // Distance for left side
+
+    digitalWrite(tr2, LOW);
+    delayMicroseconds(2);
+    digitalWrite(tr2, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(tr2, LOW);
+    int dst2 = pulseIn(ec2, HIGH) / 58.2; 
+
+    Serial.println("D1:" + String(dst1) + "   D2:" + String(dst2));
+
+    lcd.clear();
+    lcd.print("DL:" + String(dst1) + "  DR:" + String(dst2));
+    if (dst1 < 10) {
+        if (rservo.read() != 20) {
+            for (int i = rservo.read(); i <= 20; i++) {
+                rservo.write(i);
+                delay(20);
+            }
+        }
+    } else {
+        // No obstacle on the left side - reset right servo
+        if (rservo.read() != 0) {
+            for (int i = rservo.read(); i >= 0; i--) {
+                rservo.write(i);
+                delay(20);  // Increased delay for smoother movement
+            }
+        }
+    }
+    if (isLeftLightDetected && dst2 < 10) {
+        if (lservo.read() != 0) {
+            for (int i = lservo.read(); i >= 0; i--) {
+                lservo.write(i);
+                delay(20);
+            }
+        }
+    } else {
+        if (lservo.read() != 20) {
+            for (int i = lservo.read(); i <= 20; i++) {
+                lservo.write(i);
+                delay(20);
+            }
+        }
+    }
+    if (isLeftLightDetected) {
+        digitalWrite(hl, HIGH);
+        digitalWrite(hr, HIGH);
+    } else {
+        digitalWrite(hl, LOW);
+        digitalWrite(hr, LOW);
+    }
+}
